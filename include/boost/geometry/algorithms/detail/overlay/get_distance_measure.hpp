@@ -103,7 +103,12 @@ struct get_distance_measure<CalculationType, cartesian_tag>
 
         auto const line = detail::make::make_infinite_line<CalculationType>(p1, p2);
         result_type result;
-        result.measure = arithmetic::side_value(line, p);
+		if (equals(p, p1) || equals(p, p2)) {
+			result.measure = 0;
+		}
+		else {
+			result.measure = arithmetic::side_value(line, p);
+		}
         return result;
     }
 };
