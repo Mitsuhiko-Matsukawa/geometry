@@ -38,17 +38,17 @@ struct sweep_equal_policy
     template <typename P>
     static inline bool equals(P const& p1, P const& p2)
     {
-        // Points within a kilo epsilon are considered as equal
+        // Points within a epsilon are considered as equal
         using coor_t = typename coordinate_type<P>::type;
-        return approximately_equals(p1, p2, coor_t(1000));
+        return approximately_equals(p1, p2, coor_t(1));
     }
 
     template <typename T>
     static inline bool exceeds(T value)
     {
         // This threshold is an arbitrary value
-        // as long as it is than the used kilo-epsilon
-        T const limit = T(1) / T(1000);
+        // as long as it is than the used epsilon
+        T const limit = T(1) / T(1);
         return value > limit;
     }
 };
