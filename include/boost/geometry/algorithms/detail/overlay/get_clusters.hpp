@@ -39,14 +39,15 @@ private:
     template <typename T>
     static inline T threshold()
     {
-        // Tuned by cases of #1081
-        return T(3);
+        // Tuned by cases of #1081. It should just be one epsilon to distinguish between
+        // different turn-points and real colocated clusters.
+        return T(1);
     }
 public:
+    // Returns true if point are considered equal (within an epsilon)
     template <typename P>
     static inline bool equals(P const& p1, P const& p2)
     {
-        // Points within a some epsilons are considered as equal
         using coor_t = typename coordinate_type<P>::type;
         return approximately_equals(p1, p2, threshold<coor_t>());
     }
