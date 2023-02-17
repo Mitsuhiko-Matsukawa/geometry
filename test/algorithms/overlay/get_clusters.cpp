@@ -102,8 +102,8 @@ int test_main(int, char* [])
     test_get_clusters<ep>();
 
     // This constant relates to the threshold in get_clusters,
-    // which is now return T(1) (earlier it was 1000)
-    double const multiplier = 1.0 / 1000.0;
+    // which is now return T(100) (earlier it was 1000)
+    double const multiplier = 1.0 / 10.0;
 
     test_get_clusters_border_cases<fp>(1.0e-4 * multiplier);
     test_get_clusters_border_cases<dp>(1.0e-13 * multiplier);

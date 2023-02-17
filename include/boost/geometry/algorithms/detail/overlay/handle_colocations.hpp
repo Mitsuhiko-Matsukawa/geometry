@@ -52,25 +52,76 @@ namespace boost { namespace geometry
 namespace detail { namespace overlay
 {
 
+// Removes clusters which have only one point left, or are empty.
 template <typename Turns, typename Clusters>
 inline void remove_clusters(Turns& turns, Clusters& clusters)
 {
-    typename Clusters::iterator it = clusters.begin();
+    auto it = clusters.begin();
     while (it != clusters.end())
     {
         // Hold iterator and increase. We can erase cit, this keeps the
         // iterator valid (cf The standard associative-container erase idiom)
-        typename Clusters::iterator current_it = it;
+        auto current_it = it;
         ++it;
 
-        std::set<signed_size_type> const& turn_indices
-                = current_it->second.turn_indices;
+        auto const& turn_indices = current_it->second.turn_indices;
         if (turn_indices.size() == 1)
         {
-            signed_size_type const turn_index = *turn_indices.begin();
+            auto const turn_index = *turn_indices.begin();
             turns[turn_index].cluster_id = -1;
             clusters.erase(current_it);
         }
+    }
+}
+
+// Moves intersection points per cluster such that they are identical.
+// Because clusters are intersection close together, and
+// handled as one location. Then they should also have one location.
+// The coordinates are averaged.
+// It is necessary to avoid artefacts and invalidities.
+template <typename Turns, typename Clusters>
+inline void colocate_clusters(Turns& turns, Clusters const& clusters)
+{
+    for (auto const& pair : clusters)
+    {
+        auto const& indices = pair.second.turn_indices;
+        if (indices.size() < 2)
+        {
+            // Defensive check
+            continue;
+        }
+
+#if defined(BOOST_GEOMETRY_USE_FIRST_POINT_AT_CLUSTER)
+        // This approach works for all but one testcase (rt_p13)
+        // The problem is fill_sbs, which uses sides and these sides might change slightly
+        // depending on the exact location of the cluster.
+        // Using the centroid is, on the average, a safer choice for sides.
+        // Alternatively fill_sbs could be revised, but that requires a lot of work
+        // and is outside current scope.
+        auto it = indices.begin();
+        auto const& first_point = turns[*it].point;
+        for (++it; it != indices.end(); ++it)
+        {
+            turns[*it].point = first_point;
+        }
+#else
+        using point_t = decltype(turns[*indices.begin()].point);
+        using coor_t = typename coordinate_type<point_t>::type;
+        coor_t centroid_0{};
+        coor_t centroid_1{};
+        for (const auto& index : indices)
+        {
+            centroid_0 += geometry::get<0>(turns[index].point);
+            centroid_1 += geometry::get<1>(turns[index].point);
+        }
+        centroid_0 /= indices.size();
+        centroid_1 /= indices.size();
+        for (const auto& index : indices)
+        {
+            geometry::set<0>(turns[index].point, centroid_0);
+            geometry::set<1>(turns[index].point, centroid_1);
+        }
+#endif
     }
 }
 
@@ -78,18 +129,16 @@ template <typename Turns, typename Clusters>
 inline void cleanup_clusters(Turns& turns, Clusters& clusters)
 {
     // Removes discarded turns from clusters
-    for (typename Clusters::iterator mit = clusters.begin();
-         mit != clusters.end(); ++mit)
+    for (auto& pair : clusters)
     {
-        cluster_info& cinfo = mit->second;
-        std::set<signed_size_type>& ids = cinfo.turn_indices;
-        for (std::set<signed_size_type>::iterator sit = ids.begin();
-             sit != ids.end(); /* no increment */)
+        auto& cinfo = pair.second;
+        auto& ids = cinfo.turn_indices;
+        for (auto sit = ids.begin(); sit != ids.end(); /* no increment */)
         {
-            std::set<signed_size_type>::iterator current_it = sit;
+            auto current_it = sit;
             ++sit;
 
-            signed_size_type const turn_index = *current_it;
+            auto const turn_index = *current_it;
             if (turns[turn_index].discarded)
             {
                 ids.erase(current_it);
@@ -98,6 +147,7 @@ inline void cleanup_clusters(Turns& turns, Clusters& clusters)
     }
 
     remove_clusters(turns, clusters);
+    colocate_clusters(turns, clusters);
 }
 
 template <typename Turn, typename IdSet>
